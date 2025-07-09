@@ -24,14 +24,14 @@ library(lubridate)
 query API
 
 ```{r}
-data_rainfall_wind <- function(lat, lon, start_date, end_date) {
+data_rainfall_wind <- function(lat, lon, start_date, end_date, time_interval = "1 hours") {
   url <- "https://archive-api.open-meteo.com/v1/archive"
   response <- GET(url, query = list (
     latitude = lat,
     longitude = lon,
     start_date = start_date,
     end_date = end_date,
-    hourly = "precipitation,wind_speed_10m",
+    hourly = "precipitation,wind_speed_10m,wind_gusts_10m",
     timezone = "auto"
   ))
   data1 <- fromJSON(content(response, as = "text"))
@@ -39,30 +39,50 @@ data_rainfall_wind <- function(lat, lon, start_date, end_date) {
   df <- tibble(
     time = ymd_hm(data1$hourly$time),
     precipitation = data1$hourly$precipitation,
-    wind_speed = data1$hourly$wind_speed_10m
+    wind_speed = data1$hourly$wind_speed_10m,
+    wind_gust = data1$hourly$wind_gusts_10m
   )
   # 4-hour summary
-  df_4hr <- df %>%
-    mutate(interval = floor_date(time, "4 hours")) %>%
+  df_hr <- df %>%
+    mutate(interval = floor_date(time, time_interval)) %>%
     group_by(interval) %>%
     summarize(
       precipitation_sum = sum(precipitation, na.rm = TRUE),
       wind_speed_avg = mean(wind_speed, na.rm = TRUE),
+      wind_gust_max = max(wind_gust, na.rm = TRUE),
       .groups = "drop"
     )
   
-  return(df_4hr)
+  return(df_hr)
 }
 
 #Asheville Helene flood
-rain_asheville <- data_rainfall_wind(35.5975, -82.5461, "2024-09-25", "2024-09-27")
+rain_asheville_nc <- data_rainfall_wind(35.5975, -82.5461, "2024-09-25", "2024-09-27")
+
+#Busick nc helene flood
+rain_busick_nc <- data_rainfall_wind(35.7698, -82.1829, "2024-09-25", "2024-09-27")
 
 #houston July 2025 flood
-rain_kerrville_Tx <-data_rainfall_wind(30.0474, -99., "2025-07-03", "2025-07-05")
+rain_kerrville_tx <-data_rainfall_wind(30.0474, -99., "2025-07-03", "2025-07-05")
 
 #Nc Chantal July 2025 flood
-rain_Orangecounty_NC<- data_rainfall_wind(36.0263, -79.1097, "2025-07-06", "2025-07-07")
+rain_orangecounty_nc <- data_rainfall_wind(36.0263, -79.1097, "2025-07-06", "2025-07-07")
 
+#add location and storm name
+rain_asheville_nc <- rain_asheville_nc %>% 
+  mutate(location = "Asheville", storm_name = "Helene")
+
+rain_busick_nc <- rain_busick_nc %>% 
+  mutate(location = "Busick", storm_name = "Helene")
+
+rain_kerrville_tx <- rain_kerrville_tx %>% 
+  mutate(location = "Kerrville", storm_name = "Barry")
+
+rain_orangecounty_nc <- rain_orangecounty_nc %>% 
+  mutate(location = "Orange County", storm_name = "Chantal")
+
+#combine data sets into One
+all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_tx, rain_orangecounty_nc)
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
