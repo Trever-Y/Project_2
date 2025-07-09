@@ -1,0 +1,68 @@
+---
+title: "Static Code for App"
+author: "Trever Yoder"
+format: pdf
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r setup, message = FALSE, warning = FALSE}
+#Read in packages
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(lubridate)
+```
+
+query API
+
+```{r}
+data_rainfall_wind <- function(lat, lon, start_date, end_date) {
+  url <- "https://archive-api.open-meteo.com/v1/archive"
+  response <- GET(url, query = list (
+    latitude = lat,
+    longitude = lon,
+    start_date = start_date,
+    end_date = end_date,
+    hourly = "precipitation,wind_speed_10m",
+    timezone = "auto"
+  ))
+  data1 <- fromJSON(content(response, as = "text"))
+  
+  df <- tibble(
+    time = ymd_hm(data1$hourly$time),
+    precipitation = data1$hourly$precipitation,
+    wind_speed = data1$hourly$wind_speed_10m
+  )
+  # 4-hour summary
+  df_4hr <- df %>%
+    mutate(interval = floor_date(time, "4 hours")) %>%
+    group_by(interval) %>%
+    summarize(
+      precipitation_sum = sum(precipitation, na.rm = TRUE),
+      wind_speed_avg = mean(wind_speed, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  return(df_4hr)
+}
+
+#Asheville Helene flood
+rain_asheville <- data_rainfall_wind(35.5975, -82.5461, "2024-09-25", "2024-09-27")
+
+#houston July 2025 flood
+rain_kerrville_Tx <-data_rainfall_wind(30.0474, -99., "2025-07-03", "2025-07-05")
+
+#Nc Chantal July 2025 flood
+rain_Orangecounty_NC<- data_rainfall_wind(36.0263, -79.1097, "2025-07-06", "2025-07-07")
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
