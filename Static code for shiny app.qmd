@@ -17,7 +17,7 @@ When you click the **Render** button a document will be generated that includes 
 #Read in packages
 library(httr)
 library(jsonlite)
-library(dplyr)
+library(tidyverse)
 library(lubridate)
 ```
 
@@ -38,7 +38,7 @@ data_rainfall_wind <- function(lat, lon, start_date, end_date, time_interval = "
   
   df <- tibble(
     time = ymd_hm(data1$hourly$time),
-    precipitation = data1$hourly$precipitation,
+    precipitation = data1$hourly$precipitation * 0.03937,
     wind_speed = data1$hourly$wind_speed_10m,
     wind_gust = data1$hourly$wind_gusts_10m
   )
@@ -83,6 +83,119 @@ rain_orangecounty_nc <- rain_orangecounty_nc %>%
 
 #combine data sets into One
 all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_tx, rain_orangecounty_nc)
+
+###manipulate data into hourly for comparison purposes
+hourly_all_data <- all_data %>%
+  group_by(location) %>%
+  mutate(
+    hours_since_start = as.numeric(difftime(interval, min(interval), units = "hours")),
+    cumulative_rainfall = cumsum(precipitation_sum)
+  ) %>%
+  ungroup()
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+Now, let's create some summaries from this data
+
+```{r}
+### Histograms ##### 
+#### LINE PLOTS #######
+#Rainfall
+ggplot(hourly_all_data, aes(x = hours_since_start, y = precipitation_sum, color = location)) +
+  geom_line(size = 1) +
+  labs(title = "Average Rainfall Over Time by Location",
+       x = "Hours Since Storm Start",
+       y = "Rainfall (Inches)",
+       color = "Location")  +
+  theme_minimal()
+
+#Cumulative Rainfall
+ggplot(hourly_all_data, aes(x = hours_since_start, y = cumulative_rainfall, color = location)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Cumulative Rainfall Over Time by Location",
+    x = "Hours Since Storm Start",
+    y = "Cumulative Rainfall (Inches)",
+    color = "Location"
+  ) +
+  theme_minimal()
+
+#Hourly Wind Averages
+ggplot(hourly_all_data, aes(x = hours_since_start, y = wind_speed_avg, color = location)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Hourly Wind Averages Over Storm Duration",
+    x = "Hours Since Storm Start",
+    y = "Wind Speed Average (Miles Per Hour)",
+    color = "Location"
+  ) +
+  theme_minimal()
+
+#Hourly Max Wind Gust
+ggplot(hourly_all_data, aes(x = hours_since_start, y = wind_gust_max, color = location)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Maximum Wind Gusts Over Storm Duration",
+    x = "Hours Since Storm Start",
+    y = "Wind Gust (Miles Per Hour)",
+    color = "Location"
+  ) +
+  theme_minimal()
+
+
+####BOX PLOTs#######
+#Rainfall
+ggplot(hourly_all_data, aes(x = storm_name, y = precipitation_sum, color = location)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Hourly Rainfall by Location and Storm",
+       x = "Name of the Storm",
+       y = "Rainfall (Inches)",
+       color = "Location")  +
+  theme_minimal()
+
+#Hourly Wind Averages
+ggplot(hourly_all_data, aes(x = storm_name, y = wind_speed_avg, color = location)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Hourly Wind Averages by Location and Storm",
+       x = "Name of the Storm",
+       y = "Windspeed (Miles Per Hour)",
+       color = "Location")  +
+  theme_minimal()
+
+#Wind Gusts Maximums
+ggplot(hourly_all_data, aes(x = storm_name, y = wind_gust_max, color = location)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Wind Gust Maximums by Location and Storm",
+       x = "Name of the Storm",
+       y = "Windspeed (Miles Per Hour)",
+       color = "Location")  +
+  theme_minimal()
+
+###HEAT MAPS####
+#heat map rainfall
+ggplot(hourly_all_data, aes(x = hours_since_start, y = location, fill = precipitation_sum)) +
+  geom_tile() +
+  labs(title = "Heat Map of Hourly Rainfall by Location",
+       x = "Hours Since Storm Start",
+       y = "City/Region",
+       fill = "Inches Per Hour") + 
+  scale_fill_viridis_c()
+
+#heat map wind averages
+ggplot(hourly_all_data, aes(x = hours_since_start, y = location, fill = wind_speed_avg)) +
+  geom_tile() +
+  labs(title = "Heat Map of Hourly Averaged Windspeed by Location",
+       x = "Hours Since Storm Start",
+       y = "City/Region",
+       fill = "MPH") + 
+  scale_fill_viridis_c()
+
+#heat map wing gusts
+ggplot(hourly_all_data, aes(x = hours_since_start, y = location, fill = wind_gust_max)) +
+  geom_tile() +
+  labs(title = "Heat Map of Maximum Hourly Wind Gust by Location",
+       x = "Hours Since Storm Start",
+       y = "City/Region",
+       fill = "MPH") + 
+  scale_fill_viridis_c()
+```
+
