@@ -44,12 +44,8 @@ ui <- dashboardPage(
                     )),
                     dateInput("start_date", "Start Date"),
                     dateInput("end_date", "End Date"),
-                    selectInput("interval", "Time Interval",
-                                choices = c("1 hour" = "1 hours",
-                                            "2 hours" = "2 hours",
-                                            "4 hours" = "4 hours",
-                                            "6 hours" = "6 hours"),
-                                selected = "1 hours"),
+                    sliderInput("interval", "Time Interval (Hours)",
+                                min = 1, max = 6, step = 1, value = 1),
                     checkboxGroupInput("columns", "Select columns to include in download:",
                                        choices = c("interval", "precipitation_sum", "wind_speed_avg", "wind_gust_max"),
                                        selected = c("interval", "precipitation_sum", "wind_speed_avg", "wind_gust_max")),
@@ -67,12 +63,54 @@ ui <- dashboardPage(
                     tableOutput("preview_table")
                   )
                 )
-
-              
+              )
+      ),
+      tabItem(tabName = "exploration",
+              fluidPage(
+                titlePanel("Weather Data Visualizations"),
+                
+                # Plot type options
+                selectInput("plot_type", "Select Plot Type",
+                            choices = c("Table", "Line Plot", "Box Plot", "Heat Map"),
+                            selected = "Line Plot"),
+                
+                # Show these tabs only if Line Plot is selected
+                conditionalPanel(
+                  condition = "input.plot_type == 'Line Plot'",
+                  tabsetPanel(
+                    tabPanel("Average Rainfall",
+                             plotOutput("avg_rainfall_plot")),
+                    tabPanel("Cumulative Rainfall",
+                             plotOutput("cumulative_rainfall_plot")),
+                    tabPanel("Wind Averages",
+                             plotOutput("wind_avg_plot")),
+                    tabPanel("Max Wind Gusts",
+                             plotOutput("wind_gust_plot"))
+                  )
+                ),
+                conditionalPanel(
+                  condition = "input.plot_type == 'Box Plot'",
+                  tabsetPanel(
+                    tabPanel("Rainfall Distribution", plotOutput("box_rainfall_plot")),
+                    tabPanel("Wind Averages Distribution", plotOutput("box_wind_avg_plot")),
+                    tabPanel("Wind Gusts Distribution", plotOutput("box_wind_gust_plot"))
+                  )
+                ),
+                conditionalPanel(
+                  condition = "input.plot_type == 'Heat Map'",
+                  tabsetPanel(
+                    tabPanel("Rainfall Heat Map",
+                             plotOutput("heat_rainfall_plot")),
+                    tabPanel("Wind Avg Heat Map",
+                             plotOutput("heat_wind_avg_plot")),
+                    tabPanel("Max Gust Heat Map",
+                             plotOutput("heat_wind_gust_plot"))
+                  )
+                )
+              )
       )
     )
   )
-)
 )
 
 #Create API Query function
@@ -143,7 +181,45 @@ hourly_all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_t
   ) %>%
   ungroup()
 
-# Define server logic required to draw a histogram
+#Define line plot function
+plot_line <- function(data, x_var, y_var, x_label, y_label, title) {
+  ggplot(data, aes_string(x = x_var, y = y_var, color = "location")) +
+    geom_line(size = 1) +
+    labs(
+      title = title,
+      x = x_label,
+      y = y_label,
+      color = "Location"
+    ) +
+    theme_minimal()
+}
+
+#Define box plot function
+plot_box <- function(data, x_var, y_var, color_var = NULL, x_label = NULL, y_label = NULL, title = NULL) {
+  ggplot(data, aes_string(x = x_var, y = y_var, color = color_var)) +
+    geom_boxplot() +
+    labs(title = title,
+         x = x_label, 
+         y = y_label, 
+         color = color_var) +
+    theme_minimal()
+}
+
+#Define heat map function
+plot_heatmap <- function(data, fill_var, title, fill_label) {
+  ggplot(data, aes(x = hours_since_start, y = location, fill = .data[[fill_var]])) +
+    geom_tile() +
+    labs(
+      title = title,
+      x = "Hours Since Storm Start",
+      y = "City/Region",
+      fill = fill_label
+    ) +
+    scale_fill_viridis_c() +
+    theme_minimal()
+}
+
+#Define server logic
 server <- function(input, output, session) {
   
   # Define lat/lon for each location
@@ -154,9 +230,8 @@ server <- function(input, output, session) {
     "Orange County" = list(lat = 36.0263, lon = -79.1097)
   )
   
-  # Store the most recent data and store hourly data for use in Data Exploration
+  #Store the most recent data selected
   queried_data <- reactiveVal()
-  raw_hourly_data <- reactiveVal()
   
   #auto fill date range based on location so specific storm data is selected
   observeEvent(input$location, {
@@ -171,23 +246,23 @@ server <- function(input, output, session) {
       updateDateInput(session, "end_date", value = as.Date("2025-07-07"))
     }
   })
-  # When button is clicked
+  #When button is clicked
   observeEvent(input$fetch_data, {
     req(input$location, input$start_date, input$end_date)
     
-    # Extract coordinates
+    #Extract coordinates
     coords <- location_coords[[input$location]]
     
-    # Run the query
+    #Run the query
     the_query <- data_rainfall_wind(
       lat = coords$lat,
       lon = coords$lon,
       start_date = as.character(input$start_date),
       end_date = as.character(input$end_date),
-      time_interval = input$interval
+      time_interval = paste(input$interval, "hours")
     )
     
-    # Store full data
+    #Store full data
     queried_data(the_query)
     })
   
@@ -208,7 +283,7 @@ server <- function(input, output, session) {
   })
 
   
-  # Show preview table
+  #Show preview table
   output$preview_table <- renderTable({
     head(filtered_data_selected(), 10)
   })
@@ -228,6 +303,125 @@ server <- function(input, output, session) {
                     "Kerrville" = "Barry",
                     "Orange County" = "Chantal")
     strong(paste("Storm:", storm))
+  })
+  
+  #Data exploration tab
+  ##Line Plots
+  output$avg_rainfall_plot <- renderPlot({
+    req(input$plot_type == "Line Plot")
+    plot_line(
+      data = hourly_all_data,
+      x_var = "hours_since_start",
+      y_var = "precipitation_sum",
+      x_label = "Hours Since Storm Start",
+      y_label = "Rainfall (Inches)",
+      title = "Average Rainfall Over Time by Location"
+    )
+  })
+  
+  output$cumulative_rainfall_plot <- renderPlot({
+    req(input$plot_type == "Line Plot")
+    plot_line(
+      data = hourly_all_data,
+      x_var = "hours_since_start",
+      y_var = "cumulative_rainfall",
+      x_label = "Hours Since Storm Start",
+      y_label = "Cumulative Rainfall (Inches)",
+      title = "Cumulative Rainfall Over Time by Location"
+    )
+  })
+  
+  output$wind_avg_plot <- renderPlot({
+    req(input$plot_type == "Line Plot")
+    plot_line(
+      data = hourly_all_data,
+      x_var = "hours_since_start",
+      y_var = "wind_speed_avg",
+      x_label = "Hours Since Storm Start",
+      y_label = "Wind Speed Average (Miles Per Hour)",
+      title = "Hourly Wind Averages Over Storm Duration"
+    )
+  })
+  output$wind_gust_plot <- renderPlot({
+    req(input$plot_type == "Line Plot")
+    plot_line(
+      data = hourly_all_data,
+      x_var = "hours_since_start",
+      y_var = "wind_gust_max",
+      x_label = "Hours Since Storm Start",
+      y_label = "Max Wind Gust (Miles Per Hour)",
+      title = "Maximum Wind Gusts Over Storm Duration"
+    )
+  })
+  ##Box plots
+  output$box_rainfall_plot <- renderPlot({
+    req(input$plot_type == "Box Plot")
+    plot_box(
+      data = hourly_all_data,
+      x_var = "storm_name",
+      y_var = "precipitation_sum",
+      color_var = "location",
+      x_label = "Name of the Storm",
+      y_label = "Rainfall (Inches)",
+      title = "Distribution of Hourly Rainfall by Location and Storm"
+    )
+  })
+  
+  output$box_wind_avg_plot <- renderPlot({
+    req(input$plot_type == "Box Plot")
+    plot_box(
+      data = hourly_all_data,
+      x_var = "storm_name",
+      y_var = "wind_speed_avg",
+      color_var = "location",
+      x_label = "Name of the Storm",
+      y_label = "Wind Speed (Miles Per Hour)",
+      title = "Distribution of Hourly Wind Averages by Location and Storm"
+    )
+  })
+  
+  output$box_wind_gust_plot <- renderPlot({
+    req(input$plot_type == "Box Plot")
+    plot_box(
+      data = hourly_all_data,
+      x_var = "storm_name",
+      y_var = "wind_gust_max",
+      color_var = "location",
+      x_label = "Name of the Storm",
+      y_label = "Max Wind Gust (Miles Per Hour)",
+      title = "Distribution of Wind Gust Maximums by Location and Storm"
+    )
+  })
+  
+  ## Heat Maps
+  output$heat_rainfall_plot <- renderPlot({
+    req(input$plot_type == "Heat Map")
+    plot_heatmap(
+      data = hourly_all_data,
+      fill_var = "precipitation_sum",
+      title = "Heat Map of Hourly Rainfall by Location",
+      fill_label = "Inches Per Hour"
+    )
+  })
+  
+  output$heat_wind_avg_plot <- renderPlot({
+    req(input$plot_type == "Heat Map")
+    plot_heatmap(
+      data = hourly_all_data,
+      fill_var = "wind_speed_avg",
+      title = "Heat Map of Hourly Averaged Windspeed by Location",
+      fill_label = "MPH"
+    )
+  })
+  
+  output$heat_wind_gust_plot <- renderPlot({
+    req(input$plot_type == "Heat Map")
+    plot_heatmap(
+      data = hourly_all_data,
+      fill_var = "wind_gust_max",
+      title = "Heat Map of Maximum Hourly Wind Gust by Location",
+      fill_label = "MPH"
+    )
   })
   }
 
