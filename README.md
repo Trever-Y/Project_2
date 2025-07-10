@@ -1,4 +1,4 @@
-• Brief description of the app and its purpose.
+• The purpose of this app is to easily compare rainfall and wind speeds of recent major storms. Assuming the user has seen reports from these storms, this tool is supposed to encourage thought around terrain type and flood hazards vs how much rain actually falls. Same for wind damages. 
 
 • Packages required for this app:
 httr, jsonlite, tidyverse, lubridate, shinydashboard,shiny
