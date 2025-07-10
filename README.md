@@ -11,4 +11,4 @@ library(tidyverse)
 library(shinydashboard)
 library(shiny)
 ```
-•  ```shiny::runGitHub(Project_2, Trever-Y)``` code that we can copy and paste into RStudio to run your app.
+•  ```shiny::runGitHub("Project_2", "Trever-Y")``` code that we can copy and paste into RStudio to run your app.
