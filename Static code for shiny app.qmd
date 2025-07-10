@@ -86,11 +86,21 @@ rain_orangecounty_nc <- rain_orangecounty_nc %>%
 all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_tx, rain_orangecounty_nc)
 
 ###manipulate data into hourly and cumulative rainfall for comparison purposes
-hourly_all_data <- all_data %>%
+hourly_all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_tx, rain_orangecounty_nc) %>%
   group_by(location) %>%
   mutate(
     hours_since_start = as.numeric(difftime(interval, min(interval), units = "hours")),
-    cumulative_rainfall = cumsum(precipitation_sum)
+    cumulative_rainfall = cumsum(precipitation_sum),
+    rain_category = cut(
+      precipitation_sum,
+      breaks = c(-Inf, 0.2, 0.4, Inf),
+      labels = c("< 0.2", "0.2 - 0.4", "> 0.4")
+    ),
+    wind_category = cut(
+      wind_speed_avg,
+      breaks = c(-Inf, 10, 15, Inf),
+      labels = c("Low (<10 mph)", "Moderate (10-15 mph)", "High (>15 mph)")
+    )
   ) %>%
   ungroup()
 ```

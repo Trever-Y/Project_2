@@ -107,8 +107,12 @@ ui <- dashboardPage(
                 ),
                 conditionalPanel(
                   condition = "input.plot_type == 'Table'",
-                  tabPanel("Rainfall Contingency Table (Faceted)",
-                           plotOutput("rain_facet_table"))
+                  tabsetPanel(
+                    tabPanel("Rainfall Contingency Table (Faceted)",
+                            plotOutput("rain_facet_table")),
+                    tabPanel("Rain-Wind Interaction Table",
+                             plotOutput("rain_wind_interaction_plot"))
+                  )
                 )
               )
       )
@@ -185,6 +189,11 @@ hourly_all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_t
       precipitation_sum,
       breaks = c(-Inf, 0.2, 0.4, Inf),
       labels = c("< 0.2", "0.2 - 0.4", "> 0.4")
+    ),
+    wind_category = cut(
+      wind_speed_avg,
+      breaks = c(-Inf, 10, 15, Inf),
+      labels = list("Low (<10 mph)", "Moderate (10-15 mph)", "High (>15 mph)")
     )
   ) %>%
   ungroup()
@@ -443,6 +452,22 @@ server <- function(input, output, session) {
         x = "Rainfall Category (in/hr)",
         y = "Count of Hours",
         fill = "Location"
+      ) +
+      theme_minimal()
+  })
+  
+  ##Rain and wind plot
+  output$rain_wind_interaction_plot <- renderPlot({
+    req(input$plot_type == "Table")
+    
+    ggplot(hourly_all_data, aes(x = rain_category, y = wind_category)) +
+      geom_count() +
+      facet_wrap(~ storm_name) +
+      labs(
+        title = "Rainfall and Wind Speed Interaction by Storm",
+        x = "Rainfall Category (in/hr)",
+        y = "Wind Speed Category",
+        size = "Count"
       ) +
       theme_minimal()
   })
