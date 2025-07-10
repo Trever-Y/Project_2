@@ -7,9 +7,7 @@
 #    https://shiny.posit.co/
 #
 
-library(shiny)
-
-# Define UI for application that draws a histogram
+#Define UI
 ui <- dashboardPage(
   dashboardHeader(title = "Major Weather Events"),
   
@@ -69,12 +67,12 @@ ui <- dashboardPage(
               fluidPage(
                 titlePanel("Weather Data Visualizations"),
                 
-                # Plot type options
+                #Plot type options
                 selectInput("plot_type", "Select Plot Type",
                             choices = c("Table", "Line Plot", "Box Plot", "Heat Map"),
                             selected = "Table"),
                 
-                # Show these tabs only if Line Plot is selected
+                #Show these tabs only if Line Plot is selected
                 conditionalPanel(
                   condition = "input.plot_type == 'Line Plot'",
                   tabsetPanel(
@@ -137,7 +135,7 @@ data_rainfall_wind <- function(lat, lon, start_date, end_date, time_interval = "
     wind_speed = data1$hourly$wind_speed_10m,
     wind_gust = data1$hourly$wind_gusts_10m
   )
-  # time interval options
+  #time interval options
   time_data <- tibbl %>%
     mutate(interval = floor_date(time, time_interval)) %>%
     group_by(interval) %>%
@@ -177,7 +175,7 @@ rain_kerrville_tx <- rain_kerrville_tx %>%
 rain_orangecounty_nc <- rain_orangecounty_nc %>% 
   mutate(location = "Orange County", storm_name = "Chantal")
 
-#combine data sets into One
+#combine data sets into One and create necessary variables
 hourly_all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_tx, rain_orangecounty_nc) %>%
   group_by(location) %>%
   mutate(
@@ -194,7 +192,7 @@ hourly_all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_t
 #Define line plot function
 plot_line <- function(data, x_var, y_var, x_label, y_label, title) {
   ggplot(data, aes_string(x = x_var, y = y_var, color = "location")) +
-    geom_line(size = 1) +
+    geom_line(linewidth = 1) +
     labs(
       title = title,
       x = x_label,
@@ -232,7 +230,7 @@ plot_heatmap <- function(data, fill_var, title, fill_label) {
 #Define server logic
 server <- function(input, output, session) {
   
-  # Define lat/lon for each location
+  #Define lat/lon for each location
   location_coords <- list(
     "Asheville" = list(lat = 35.5975, lon = -82.5461),
     "Busick" = list(lat = 35.7698, lon = -82.1829),
@@ -256,11 +254,11 @@ server <- function(input, output, session) {
       updateDateInput(session, "end_date", value = as.Date("2025-07-07"))
     }
   })
-  #When button is clicked
+  #compute on click
   observeEvent(input$fetch_data, {
     req(input$location, input$start_date, input$end_date)
     
-    #Extract coordinates
+    #grab coordinates
     coords <- location_coords[[input$location]]
     
     #Run the query
@@ -272,7 +270,7 @@ server <- function(input, output, session) {
       time_interval = paste(input$interval, "hours")
     )
     
-    #Store full data
+    #Store and filter/select data
     queried_data(the_query)
     })
   
@@ -293,7 +291,7 @@ server <- function(input, output, session) {
   })
 
   
-  #Show preview table
+  #Preview, download, storm
   output$preview_table <- renderTable({
     head(filtered_data_selected(), 10)
   })
@@ -403,7 +401,7 @@ server <- function(input, output, session) {
     )
   })
   
-  ## Heat Maps
+  ##Heat Maps
   output$heat_rainfall_plot <- renderPlot({
     req(input$plot_type == "Heat Map")
     plot_heatmap(
@@ -434,7 +432,7 @@ server <- function(input, output, session) {
     )
   })
   
-  #Faceted Bar Plot
+  ##Faceted Bar Plot
   output$rain_facet_table <- renderPlot({
     req(input$plot_type == "Table")
     ggplot(hourly_all_data, aes(x = rain_category, fill = location)) +

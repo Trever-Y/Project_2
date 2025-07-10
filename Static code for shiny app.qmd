@@ -15,12 +15,11 @@ When you click the **Render** button a document will be generated that includes 
 
 ```{r setup, message = FALSE, warning = FALSE}
 #Read in packages
+#Load libraries
 library(httr)
 library(jsonlite)
 library(tidyverse)
-library(lubridate)
 library(shinydashboard)
-library(shiny)
 ```
 
 query API
