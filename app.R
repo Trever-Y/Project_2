@@ -25,7 +25,7 @@ ui <- dashboardPage(
     tabItems(
       tabItem(tabName = "about",
               titlePanel("About"),
-              h1("The purpose of this app is to easily compare rainfall and wind speeds of recent major storms."),
+              h1("The purpose of this app is to easily compare duration and intensity of rainfall and wind speeds from recent major storms. Please keep in mind that the storm durations vary and start/end points are daily, not hourly. This means that even if a storm starts at night, that entire day of data is pulled from the API."),
               h1("These data are historic forecast data from the Open-Meteo API. The storms and region options were selected due to the extreme damages caused by these storms.", a("Click here to read more about Open-Meteo.", href = "https://open-meteo.com/en/docs/historical-forecast-api", target = "_blank")),
               h1("The Data Download tab allows the user to interactivly select locations and variables and download the data file. The Data Exploration tab allows the user to interact with various widgets and tools to view a variety of data summary graphics."),
               img(src = "APIimage.png", height = "300px"),
@@ -72,7 +72,7 @@ ui <- dashboardPage(
                 # Plot type options
                 selectInput("plot_type", "Select Plot Type",
                             choices = c("Table", "Line Plot", "Box Plot", "Heat Map"),
-                            selected = "Line Plot"),
+                            selected = "Table"),
                 
                 # Show these tabs only if Line Plot is selected
                 conditionalPanel(
@@ -106,6 +106,11 @@ ui <- dashboardPage(
                     tabPanel("Max Gust Heat Map",
                              plotOutput("heat_wind_gust_plot"))
                   )
+                ),
+                conditionalPanel(
+                  condition = "input.plot_type == 'Table'",
+                  tabPanel("Rainfall Contingency Table (Faceted)",
+                           plotOutput("rain_facet_table"))
                 )
               )
       )
@@ -177,7 +182,12 @@ hourly_all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_t
   group_by(location) %>%
   mutate(
     hours_since_start = as.numeric(difftime(interval, min(interval), units = "hours")),
-    cumulative_rainfall = cumsum(precipitation_sum)
+    cumulative_rainfall = cumsum(precipitation_sum),
+    rain_category = cut(
+      precipitation_sum,
+      breaks = c(-Inf, 0.2, 0.4, Inf),
+      labels = c("< 0.2", "0.2 - 0.4", "> 0.4")
+    )
   ) %>%
   ungroup()
 
@@ -422,6 +432,21 @@ server <- function(input, output, session) {
       title = "Heat Map of Maximum Hourly Wind Gust by Location",
       fill_label = "MPH"
     )
+  })
+  
+  #Faceted Bar Plot
+  output$rain_facet_table <- renderPlot({
+    req(input$plot_type == "Table")
+    ggplot(hourly_all_data, aes(x = rain_category, fill = location)) +
+      geom_bar(position = "dodge") +
+      facet_wrap(~storm_name) +
+      labs(
+        title = "Hourly Rainfall Distribution by Storm and Location",
+        x = "Rainfall Category (in/hr)",
+        y = "Count of Hours",
+        fill = "Location"
+      ) +
+      theme_minimal()
   })
   }
 
