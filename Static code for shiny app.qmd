@@ -20,6 +20,7 @@ library(jsonlite)
 library(tidyverse)
 library(lubridate)
 library(shinydashboard)
+library(shiny)
 ```
 
 query API
@@ -43,7 +44,7 @@ data_rainfall_wind <- function(lat, lon, start_date, end_date, time_interval = "
     wind_speed = data1$hourly$wind_speed_10m,
     wind_gust = data1$hourly$wind_gusts_10m
   )
-  # 4-hour summary
+  # add time interval
   df_hr <- df %>%
     mutate(interval = floor_date(time, time_interval)) %>%
     group_by(interval) %>%
