@@ -50,7 +50,7 @@ ui <- dashboardPage(
                     radioButtons("rain_filter", "Hourly Rainfall Filter (inches):",
                                  choices = c("All" = "all", 
                                              "> 0.2 in" = "0.2",
-                                             "< 1 in (use larger Time Interval)" = "1"),
+                                             "> 1 in (use larger Time Interval)" = "1"),
                                  selected = "all"),
                     actionButton("fetch_data", "Preview Data"),
                     downloadButton("download_csv", "Download CSV"),
@@ -108,7 +108,7 @@ ui <- dashboardPage(
                 conditionalPanel(
                   condition = "input.plot_type == 'Table'",
                   tabsetPanel(
-                    tabPanel("Rainfall Contingency Table (Faceted)",
+                    tabPanel("Rainfall Contingency Table",
                             plotOutput("rain_facet_table")),
                     tabPanel("Rain-Wind Interaction Table",
                              plotOutput("rain_wind_interaction_plot"))
