@@ -10,41 +10,37 @@
 library(shiny)
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
+ui <- dashboardPage(
+  dashboardHeader(title = "Major Weather Events"),
+  
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("About", tabName = "about", icon = icon("book")),
+      menuItem("Data Download", tabName = "download", icon = icon("archive")),
+      menuItem("Data Exploration", tabName = "exploration", icon = icon("binoculars"))
     )
+  ),
+
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "about",
+              titlePanel("About"),
+              h1("The purpose of this app is to easily compare rainfall and wind speeds of recent major storms."),
+              h1("These data are historic forecast data from the Open-Meteo API. The storms and region options were selected due to the extreme damages caused by these storms.", a("Click here to read more about Open-Meteo.", href = "https://open-meteo.com/en/docs/historical-forecast-api", target = "_blank")),
+              h1("The Data Download tab allows the user to interactivly select locations and variables and download the data file. The Data Exploration tab allows the user to interact with various widgets and tools to view a variety of data summary graphics."),
+              img(src = "APIimage.png", height = "300px"),
+              img(src = "Cloud.png", height = "300px")
+      ),
+      tabItem(tabName = "download",
+              titlePanel("Data Download")
+              
+      )
+    )
+  )
 )
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
+server <- function(input, output, session) {
 }
 
 # Run the application 

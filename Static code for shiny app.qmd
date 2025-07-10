@@ -19,6 +19,7 @@ library(httr)
 library(jsonlite)
 library(tidyverse)
 library(lubridate)
+library(shinydashboard)
 ```
 
 query API
@@ -84,7 +85,7 @@ rain_orangecounty_nc <- rain_orangecounty_nc %>%
 #combine data sets into One
 all_data <- bind_rows(rain_asheville_nc, rain_busick_nc, rain_kerrville_tx, rain_orangecounty_nc)
 
-###manipulate data into hourly for comparison purposes
+###manipulate data into hourly and cumulative rainfall for comparison purposes
 hourly_all_data <- all_data %>%
   group_by(location) %>%
   mutate(
